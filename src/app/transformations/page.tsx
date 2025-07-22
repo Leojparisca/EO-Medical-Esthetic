@@ -3,10 +3,59 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader } from '@/components/page-header';
-import { mockTreatments } from '@/lib/mock-data';
+import { useEffect, useState } from 'react';
+import { getTreatments } from '@/lib/supabase/queries';
+import type { Treatment } from '@/lib/types';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function TransformationsPage() {
-  const transformations = mockTreatments;
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    loadTreatments();
+  }, []);
+
+  const loadTreatments = async () => {
+    try {
+      const data = await getTreatments();
+      setTreatments(data);
+    } catch (error) {
+      console.error('Error loading treatments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader title="Tratamientos" />
+        <div className="container mx-auto px-4 py-8">
+          <div className="text-center mb-12">
+            <Skeleton className="h-12 w-96 mx-auto mb-4" />
+            <Skeleton className="h-6 w-full max-w-3xl mx-auto" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[...Array(6)].map((_, i) => (
+              <Card key={i} className="flex flex-col overflow-hidden rounded-2xl shadow-lg">
+                <Skeleton className="h-60 w-full" />
+                <CardHeader>
+                  <Skeleton className="h-8 w-full" />
+                </CardHeader>
+                <CardContent className="flex-grow">
+                  <Skeleton className="h-20 w-full" />
+                </CardContent>
+                <CardFooter>
+                  <Skeleton className="h-12 w-full rounded-full" />
+                </CardFooter>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -22,7 +71,7 @@ export default function TransformationsPage() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {transformations.map((t) => (
+          {treatments.map((t) => (
             <Card key={t.slug} className="flex flex-col overflow-hidden transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-xl bg-card rounded-2xl shadow-lg">
               <div className="relative h-60 w-full">
                 <Image

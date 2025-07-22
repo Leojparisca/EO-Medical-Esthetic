@@ -12,18 +12,21 @@ import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { AvatarUpload } from '@/components/features/profile/avatar-upload';
-import type { UserProfile } from '@/lib/types';
+import type { Profile } from '@/lib/types';
+import { updateProfile, uploadAvatar } from '@/lib/supabase/queries';
+import { useAuth } from '@/components/providers/auth-provider';
 
 const profileSchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre debe tener al menos 2 caracteres.' }),
 });
 
 interface EditProfileClientProps {
-  profile: UserProfile;
+  profile: Profile;
   setOpen: (open: boolean) => void;
 }
 
 export function EditProfileClient({ profile, setOpen }: EditProfileClientProps) {
+  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -37,17 +40,41 @@ export function EditProfileClient({ profile, setOpen }: EditProfileClientProps) 
   });
 
   async function onSubmit(data: z.infer<typeof profileSchema>) {
+    if (!user) return;
+    
     setLoading(true);
-    // Simular una actualización de perfil
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setLoading(false);
+    
+    try {
+      let avatarUrl = profile.avatar_url;
+      
+      // Upload new avatar if selected
+      if (newAvatarFile) {
+        avatarUrl = await uploadAvatar(user.id, newAvatarFile);
+      }
+      
+      // Update profile
+      await updateProfile(user.id, {
+        full_name: data.fullName,
+        avatar_url: avatarUrl,
+      });
 
-    toast({
-      title: 'Perfil Actualizado (Simulación)',
-      description: 'Tus datos se han guardado correctamente.',
-    });
-    router.refresh(); 
-    setOpen(false); 
+      toast({
+        title: 'Perfil Actualizado',
+        description: 'Tus datos se han guardado correctamente.',
+      });
+      
+      router.refresh(); 
+      setOpen(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo actualizar el perfil.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (

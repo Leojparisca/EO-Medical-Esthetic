@@ -7,10 +7,12 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { signUp } from '@/lib/supabase/auth';
 
 export function SignupClient() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
   const router = useRouter();
@@ -19,22 +21,51 @@ export function SignupClient() {
     e.preventDefault();
     setLoading(true);
 
-    // Simular un registro
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    try {
+      const { user, error } = await signUp({ email, password, fullName });
+      
+      if (error) {
+        toast({
+          title: 'Error de Registro',
+          description: error.message,
+          variant: 'destructive'
+        });
+        return;
+      }
 
-    setLoading(false);
-
-    toast({
-      title: 'Registro Simulado',
-      description: '¡Gracias por registrarte! Redirigiendo...',
-    });
-    
-    router.push('/landing');
+      if (user) {
+        toast({
+          title: '¡Registro Exitoso!',
+          description: 'Tu cuenta ha sido creada. Revisa tu email para confirmar tu cuenta.',
+        });
+        router.push('/login');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error inesperado.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
+
 
   return (
     <form onSubmit={handleSignUp}>
       <div className="grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="fullName">Nombre Completo</Label>
+          <Input
+            id="fullName"
+            type="text"
+            placeholder="Tu nombre completo"
+            required
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
+          />
+        </div>
         <div className="grid gap-2">
           <Label htmlFor="email">Correo Electrónico</Label>
           <Input

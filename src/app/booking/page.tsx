@@ -12,18 +12,43 @@ import { cn } from '@/lib/utils';
 import { PageHeader } from '@/components/page-header';
 import { useSearchParams } from 'next/navigation';
 import { Loader2 } from 'lucide-react';
-import { mockTreatments } from '@/lib/mock-data';
+import { useEffect, useState } from 'react';
+import { getTreatments, getTreatmentBySlug, createAppointment } from '@/lib/supabase/queries';
+import { useAuth } from '@/components/providers/auth-provider';
+import type { Treatment } from '@/lib/types';
+import { useRouter } from 'next/navigation';
 
 export default function BookingPage() {
+  const { user } = useAuth();
+  const router = useRouter();
   const searchParams = useSearchParams();
   const [date, setDate] = React.useState<Date | undefined>(new Date());
   const [service, setService] = React.useState<string | undefined>(searchParams.get('service') || undefined);
   const [selectedTime, setSelectedTime] = React.useState<string | undefined>();
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [isBooked, setIsBooked] = React.useState(false);
+  const [treatments, setTreatments] = useState<Treatment[]>([]);
+  const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
-  const treatments = mockTreatments;
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    loadTreatments();
+  }, [user, router]);
+
+  const loadTreatments = async () => {
+    try {
+      const data = await getTreatments();
+      setTreatments(data);
+    } catch (error) {
+      console.error('Error loading treatments:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const timeSlots = React.useMemo(() => {
     if (!date) return [];
@@ -40,7 +65,7 @@ export default function BookingPage() {
   
   const handleBooking = async (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    if (!date || !service || !selectedTime) {
+    if (!date || !service || !selectedTime || !user) {
       toast({
         title: 'Información Incompleta',
         description: 'Por favor, selecciona un servicio, fecha y hora para reservar.',
@@ -50,16 +75,64 @@ export default function BookingPage() {
     }
 
     setIsSubmitting(true);
-    // Simular una llamada a la API
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
-    setIsBooked(true);
+    
+    try {
+      // Get the treatment details
+      const treatment = await getTreatmentBySlug(service);
+      
+      // Create the appointment
+      await createAppointment({
+        user_id: user.id,
+        treatment_id: treatment.id,
+        appointment_date: format(date, 'yyyy-MM-dd'),
+        time: selectedTime,
+        status: 'scheduled',
+        provider: 'Clínica EO'
+      });
 
-    toast({
+      setIsBooked(true);
+      toast({
         title: '¡Reserva Confirmada!',
-        description: `Tu cita para ${treatments.find(t => t.slug === service)?.title} está programada para el ${format(date, 'PPP', { locale: es })} a las ${selectedTime}. (Esto es una simulación)`,
-    });
+        description: `Tu cita para ${treatment.title} está programada para el ${format(date, 'PPP', { locale: es })} a las ${selectedTime}.`,
+      });
+    } catch (error) {
+      console.error('Error creating appointment:', error);
+      toast({
+        title: 'Error al Reservar',
+        description: 'No se pudo crear la cita. Por favor, inténtalo de nuevo.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
+  if (loading) {
+    return (
+      <>
+        <PageHeader title="Reservar Cita" />
+        <div className="container mx-auto px-4 py-8">
+          <Card className="w-full max-w-4xl mx-auto bg-card shadow-lg rounded-2xl">
+            <CardHeader className="text-center">
+              <CardTitle className="text-3xl font-bold">Agenda Tu Transformación</CardTitle>
+              <CardDescription className="text-md">
+                Da el siguiente paso hacia la luminosidad.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-8 items-start">
+              <div className="flex flex-col gap-4 items-center">
+                <div className="w-full h-80 bg-muted animate-pulse rounded-xl" />
+              </div>
+              <div className="flex flex-col gap-6">
+                <div className="h-20 bg-muted animate-pulse rounded" />
+                <div className="h-32 bg-muted animate-pulse rounded" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </>
+    );
+  }
 
   return (
     <>

@@ -1,3 +1,12 @@
+import type { Database } from './supabase/types'
+
+// Export Supabase types for use throughout the app
+export type Profile = Database['public']['Tables']['profiles']['Row']
+export type Treatment = Database['public']['Tables']['treatments']['Row']
+export type AppointmentRow = Database['public']['Tables']['appointments']['Row']
+export type TreatmentHistoryRow = Database['public']['Tables']['treatment_history']['Row']
+export type MedicalHistoryRow = Database['public']['Tables']['medical_history']['Row']
+
 export type ChatMessage = {
   role: 'user' | 'assistant';
   content: string;
@@ -13,6 +22,10 @@ export interface Appointment {
   time: string;
   treatment: string;
   provider: string;
+  treatments?: {
+    title: string;
+    slug: string;
+  };
 }
 
 export interface TreatmentHistory {
@@ -20,6 +33,10 @@ export interface TreatmentHistory {
   date: string;
   title: string;
   provider: string;
+  treatments?: {
+    title: string;
+    slug: string;
+  };
 }
 
 export interface UserProfile {
@@ -32,10 +49,3 @@ export interface UserProfile {
   loyalty_points?: number;
 }
 
-export interface Treatment {
-  slug: string;
-  title: string;
-  description: string;
-  image_url: string;
-  image_hint: string;
-}

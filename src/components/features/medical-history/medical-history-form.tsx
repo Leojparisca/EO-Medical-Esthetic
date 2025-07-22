@@ -13,6 +13,9 @@ import { ConsentField } from '@/components/features/medical-history/consent-fiel
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { createMedicalHistory, updateMedicalHistory, getUserMedicalHistory } from '@/lib/supabase/queries';
+import { useAuth } from '@/components/providers/auth-provider';
+import { useEffect } from 'react';
 
 const medicalHistorySchema = z.object({
   fullName: z.string().min(2, { message: 'El nombre completo debe tener al menos 2 caracteres.' }),
@@ -28,9 +31,11 @@ const medicalHistorySchema = z.object({
 });
 
 export function MedicalHistoryForm() {
+  const { user } = useAuth();
   const { toast } = useToast();
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [existingHistory, setExistingHistory] = useState(false);
   const form = useForm<z.infer<typeof medicalHistorySchema>>({
     resolver: zodResolver(medicalHistorySchema),
     defaultValues: {
@@ -44,17 +49,76 @@ export function MedicalHistoryForm() {
     },
   });
 
-  async function onSubmit(data: z.infer<typeof medicalHistorySchema>) {
-    setIsSubmitting(true);
-    // Simular guardado de datos
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    setIsSubmitting(false);
+  useEffect(() => {
+    if (!user) {
+      router.push('/login');
+      return;
+    }
+    loadExistingHistory();
+  }, [user, router]);
 
-    toast({
+  const loadExistingHistory = async () => {
+    if (!user) return;
+
+    try {
+      const history = await getUserMedicalHistory(user.id);
+      if (history) {
+        setExistingHistory(true);
+        form.reset({
+          fullName: history.full_name,
+          dob: history.date_of_birth,
+          allergies: history.allergies || '',
+          medications: history.medications || '',
+          medicalConditions: history.medical_conditions || [],
+          pastProcedures: history.past_procedures || '',
+          skinType: history.skin_type,
+          consent: history.consent,
+        });
+      }
+    } catch (error) {
+      console.error('Error loading medical history:', error);
+    }
+  };
+
+  async function onSubmit(data: z.infer<typeof medicalHistorySchema>) {
+    if (!user) return;
+    
+    setIsSubmitting(true);
+    
+    try {
+      const historyData = {
+        user_id: user.id,
+        full_name: data.fullName,
+        date_of_birth: data.dob,
+        allergies: data.allergies || null,
+        medications: data.medications || null,
+        medical_conditions: data.medicalConditions || null,
+        past_procedures: data.pastProcedures || null,
+        skin_type: data.skinType,
+        consent: data.consent,
+      };
+
+      if (existingHistory) {
+        await updateMedicalHistory(user.id, historyData);
+      } else {
+        await createMedicalHistory(historyData);
+      }
+
+      toast({
         title: 'Historial Médico Guardado (Simulación)',
         description: 'Gracias por completar tu formulario. Tu información está segura.',
-    });
-    router.push('/profile');
+      });
+      router.push('/profile');
+    } catch (error) {
+      console.error('Error saving medical history:', error);
+      toast({
+        title: 'Error',
+        description: 'No se pudo guardar el historial médico.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (

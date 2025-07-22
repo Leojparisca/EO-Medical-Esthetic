@@ -17,18 +17,22 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import type { UserProfile } from '@/lib/types';
+import type { Profile } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/components/providers/auth-provider';
+import { useRouter } from 'next/navigation';
 
 // Lazy load the edit form to reduce initial bundle size
 const EditProfileClient = lazy(() => import('./edit-profile-client').then(module => ({ default: module.EditProfileClient })));
 
 interface ProfileCardProps {
-    profile: UserProfile | null
+    profile: Profile | null
 }
 
 export function ProfileCard({ profile }: ProfileCardProps) {
+    const { signOut } = useAuth();
+    const router = useRouter();
     const { toast } = useToast();
     const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
@@ -43,10 +47,20 @@ export function ProfileCard({ profile }: ProfileCardProps) {
     }
 
     const handleSignOut = async () => {
-        toast({
-            title: "Sesión cerrada (Simulación)",
-            description: "Has cerrado la sesión correctamente.",
-        });
+        try {
+            await signOut();
+            toast({
+                title: "Sesión cerrada",
+                description: "Has cerrado la sesión correctamente.",
+            });
+            router.push('/login');
+        } catch (error) {
+            toast({
+                title: "Error",
+                description: "No se pudo cerrar la sesión.",
+                variant: "destructive"
+            });
+        }
     };
     
     return (

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { signIn } from '@/lib/supabase/auth';
 
 export function LoginClient() {
   const [email, setEmail] = useState('');
@@ -19,17 +20,34 @@ export function LoginClient() {
     e.preventDefault();
     setLoading(true);
 
-    // Simular un inicio de sesión
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    
-    setLoading(false);
+    try {
+      const { user, error } = await signIn({ email, password });
+      
+      if (error) {
+        toast({
+          title: 'Error de Inicio de Sesión',
+          description: error.message,
+          variant: 'destructive'
+        });
+        return;
+      }
 
-    toast({
-      title: 'Inicio de Sesión Simulado',
-      description: 'Redirigiendo a la página de inicio...',
-    });
-    
-    router.push('/landing');
+      if (user) {
+        toast({
+          title: '¡Bienvenido!',
+          description: 'Has iniciado sesión correctamente.',
+        });
+        router.push('/landing');
+      }
+    } catch (error) {
+      toast({
+        title: 'Error',
+        description: 'Ocurrió un error inesperado.',
+        variant: 'destructive'
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

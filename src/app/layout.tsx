@@ -5,6 +5,7 @@ import { BottomNav } from '@/components/bottom-nav';
 import { Poppins } from 'next/font/google';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AuthProvider } from '@/components/providers/auth-provider';
 
 const poppins = Poppins({
   subsets: ['latin'],
@@ -34,10 +35,12 @@ export default function RootLayout({
           enableSystem
           disableTransitionOnChange
         >
+          <AuthProvider>
             <div className="relative flex flex-col h-screen">
               <main className="flex-grow pb-24">{children}</main>
               <BottomNav />
             </div>
+          </AuthProvider>
           <Toaster />
         </ThemeProvider>
       </body>
