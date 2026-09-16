@@ -8,5 +8,19 @@ if (!supabaseUrl || !supabaseServiceKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
-// Create a supabase client with service role key for server-side operations
-export const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey)
+/**
+ * NOTA DE SEGURIDAD: Este cliente NO debe ser exportado directamente.
+ * La Service Role Key tiene privilegios totales y bypass de RLS.
+ * Solo usar funciones específicas que necesiten estos privilegios.
+ */
+const supabaseAdmin = createClient<Database>(supabaseUrl, supabaseServiceKey)
+
+/**
+ * Obtiene un cliente con privilegios de administrador para operaciones server-side
+ * que requieren bypass de RLS. Usar con precaución.
+ * 
+ * @deprecated Preferir Server Actions específicas para cada operación
+ */
+export function getAdminClient() {
+  return supabaseAdmin
+}

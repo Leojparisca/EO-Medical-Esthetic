@@ -1,17 +1,23 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createServerClient } from '@supabase/ssr';
 
-export function middleware(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   // Create a Supabase client configured to use cookies
-  const supabase = createClient(
+  const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      auth: {
-        flowType: 'pkce',
-        autoRefreshToken: false,
-        detectSessionInUrl: false,
-        persistSession: false,
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: any) {
+          // If we're in a middleware, we can't modify cookies directly
+          // They will be set via the response
+        },
+        remove(name: string, options: any) {
+          // Same as set - handled via response
+        },
       },
     }
   );
@@ -27,18 +33,26 @@ export function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(route)
   );
 
-  // Get the session from the request headers
-  const authHeader = request.headers.get('authorization');
-  const hasValidSession = authHeader && authHeader.startsWith('Bearer ');
+  // Get the session - validate it properly instead of just checking header presence
+  let isAuthenticated = false;
+  
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    isAuthenticated = !!session;
+  } catch (error) {
+    console.error('Error validating session in middleware:', error);
+    isAuthenticated = false;
+  }
 
   // Redirect unauthenticated users from protected routes to login
-  if (isProtectedRoute && !hasValidSession) {
+  if (isProtectedRoute && !isAuthenticated) {
     const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('redirectedFrom', request.nextUrl.pathname);
     return NextResponse.redirect(loginUrl);
   }
 
   // Redirect authenticated users from auth routes to landing
-  if (isAuthRoute && hasValidSession) {
+  if (isAuthRoute && isAuthenticated) {
     const landingUrl = new URL('/landing', request.url);
     return NextResponse.redirect(landingUrl);
   }
